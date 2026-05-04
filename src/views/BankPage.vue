@@ -64,6 +64,7 @@ import { IonButton, IonContent, IonFooter, IonHeader, IonIcon, IonLabel, IonPage
 import { gameControllerOutline, personCircleOutline, walletOutline } from 'ionicons/icons';
 import { useGameStore } from '@/stores/game';
 import { useHostGameSession } from '@/composables/useHostGameSession';
+import { useWakeLock } from '@/composables/useWakeLock';
 import BankConfigPanel from './panels/BankConfigPanel.vue';
 import BankManagementPanel from './panels/BankManagementPanel.vue';
 import PlayerGamingPanel from './panels/PlayerGamingPanel.vue';
@@ -84,6 +85,7 @@ const {
 const { addPlayer, removePlayer } = gameStore;
 const { startHostPublishing } = useHostGameSession();
 
+useWakeLock();
 startHostPublishing();
 
 </script>

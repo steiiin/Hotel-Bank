@@ -53,7 +53,13 @@ import { useHostGameSession } from '@/composables/useHostGameSession';
 const router = useRouter();
 const showBankPasswordDialog = ref(false);
 const bankPasswordError = ref('');
-const { startHostSession, hasHostSession, canReplaceHostSession } = useHostGameSession();
+const {
+  startHostSession,
+  resumeHostSession,
+  hasHostSession,
+  canReplaceHostSession,
+  hostSessionError,
+} = useHostGameSession();
 
 const bankPasswordDialogMessage = computed(() => {
   if (bankPasswordError.value) {
@@ -83,8 +89,15 @@ async function handleBankPasswordConfirmed(data: { password?: string }) {
   if (!hasHostSession.value || canReplaceHostSession.value) {
     const didStart = await startHostSession(password);
     if (!didStart) {
-      bankPasswordError.value = 'Es ist bereits eine aktive Session vorhanden. Neue Sessions sind erst nach dem Schließen oder nach 3 Stunden möglich.';
-      return false;
+      const canResumeExistingSession = hostSessionError.value === 'active-session-exists';
+      const didResume = canResumeExistingSession ? await resumeHostSession(password) : false;
+
+      if (!didResume) {
+        bankPasswordError.value = hostSessionError.value === 'invalid-password'
+          ? 'Das Passwort passt nicht zur aktiven Session.'
+          : 'Die Bank-Session konnte nicht geöffnet werden.';
+        return false;
+      }
     }
   }
 

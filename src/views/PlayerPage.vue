@@ -98,10 +98,12 @@ import {
   IonText,
   IonTitle,
   IonToolbar,
+  onIonViewWillLeave,
 } from '@ionic/vue';
 import { useGameStore } from '@/stores/game';
 import { joinSession, selectPlayer, subscribeToPlayerUpdates, type PlayerSubscription } from '@/services/gameSessionApi';
 import type { PublishedPlayerSummary, PlayerUpdate } from '@/services/sessionSnapshot';
+import { useWakeLock } from '@/composables/useWakeLock';
 import PlayerGamingPanel from './panels/PlayerGamingPanel.vue';
 
 const gameStore = useGameStore();
@@ -115,6 +117,8 @@ const isSelecting = ref(false);
 const connectionMode = ref<'sse' | 'poll' | null>(null);
 const playerToken = ref('');
 let subscription: PlayerSubscription | null = null;
+
+useWakeLock();
 
 const titleLabel = computed(() => activePlayerSession.value ? activePlayerSession.value.name : 'Spieler')
 const connectionLabel = computed(() => {
@@ -197,13 +201,27 @@ async function selectJoinedPlayer() {
     isSelecting.value = false;
   }
 }
+
+function closePlayerConnection() {
+  subscription?.close();
+  subscription = null;
+  playerToken.value = '';
+  connectionMode.value = null;
+  gameStore.clearActivePlayerSession();
+}
+
 onMounted(() => {
   setTimeout(() => {
-    passwordInput.value.$el.setFocus?.()
+    passwordInput.value?.$el.setFocus?.()
   }, 300)
 });
+
+onIonViewWillLeave(() => {
+  closePlayerConnection();
+});
+
 onBeforeUnmount(() => {
-  subscription?.close();
+  closePlayerConnection();
 });
 </script>
 

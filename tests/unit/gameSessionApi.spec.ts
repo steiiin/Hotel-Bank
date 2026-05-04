@@ -5,6 +5,7 @@ import {
   createSession,
   joinSession,
   publishSession,
+  resumeHostSession,
   selectPlayer,
   subscribeToPlayerUpdates,
 } from '@/services/gameSessionApi';
@@ -52,6 +53,22 @@ describe('game session api', () => {
       status: 403,
       code: 'invalid-password',
     });
+  });
+
+  test('resumes a host session with the session password', async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(jsonResponse({ sessionId: 's1', hostToken: 'new-token', version: 4 }));
+
+    await expect(resumeHostSession('secret')).resolves.toEqual({
+      sessionId: 's1',
+      hostToken: 'new-token',
+      version: 4,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/session.php?action=resume-host', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ password: 'secret' }),
+    }));
   });
 
   test('publishes player snapshots with host token', async () => {

@@ -1,5 +1,5 @@
 import { computed, ref, watch, type WatchStopHandle } from 'vue';
-import { closeSession, createSession, publishSession } from '@/services/gameSessionApi';
+import { closeSession, createSession, publishSession, resumeHostSession as resumeHostSessionRequest } from '@/services/gameSessionApi';
 import { createPublishedPlayers } from '@/services/sessionSnapshot';
 import { useGameStore } from '@/stores/game';
 
@@ -134,6 +134,36 @@ async function startHostSession(password: string) {
   }
 }
 
+async function resumeHostSession(password: string) {
+  const trimmedPassword = password.trim();
+  if (!trimmedPassword) {
+    hostSessionError.value = 'password-required';
+    return false;
+  }
+
+  isCreatingSession.value = true;
+  hostSessionError.value = '';
+
+  try {
+    const response = await resumeHostSessionRequest(trimmedPassword);
+    hostToken.value = response.hostToken;
+    hostSessionId.value = response.sessionId;
+    hostSessionVersion.value = response.version;
+    hostSessionStartedAt.value = Date.now();
+    writeStorage(HOST_TOKEN_KEY, response.hostToken);
+    writeStorage(HOST_SESSION_ID_KEY, response.sessionId);
+    writeStorage(HOST_SESSION_STARTED_AT_KEY, String(hostSessionStartedAt.value));
+    startHostPublishing();
+    await publishCurrentSnapshot();
+    return true;
+  } catch (error) {
+    hostSessionError.value = error instanceof Error ? error.message : 'resume-session-failed';
+    return false;
+  } finally {
+    isCreatingSession.value = false;
+  }
+}
+
 function stopHostPublishing() {
   if (stopPublishingWatch) {
     stopPublishingWatch();
@@ -197,6 +227,7 @@ export function useHostGameSession() {
     isPublishing,
     hostSessionError,
     startHostSession,
+    resumeHostSession,
     startHostPublishing,
     publishCurrentSnapshot,
     closeHostSession,

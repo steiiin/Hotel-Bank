@@ -22,6 +22,8 @@ export type CreateSessionResponse = {
   version: number;
 };
 
+export type ResumeHostSessionResponse = CreateSessionResponse;
+
 export type JoinSessionResponse = {
   sessionId: string;
   version: number;
@@ -77,6 +79,10 @@ export function createSession(password: string): Promise<CreateSessionResponse> 
 
 export function joinSession(password: string): Promise<JoinSessionResponse> {
   return requestJson<JoinSessionResponse>('session.php?action=join', { password });
+}
+
+export function resumeHostSession(password: string): Promise<ResumeHostSessionResponse> {
+  return requestJson<ResumeHostSessionResponse>('session.php?action=resume-host', { password });
 }
 
 export function selectPlayer(password: string, playerId: string): Promise<PlayerUpdate> {

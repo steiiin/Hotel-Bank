@@ -225,6 +225,28 @@ with_session_lock(function () use ($action, $body): void {
         ]);
     }
 
+    if ($action === 'resume-host') {
+        $password = sanitize_string($body['password'] ?? '', 120);
+        if ($password === '' || !password_verify($password, $session['passwordHash'] ?? '')) {
+            send_json(403, ['error' => 'invalid-password']);
+        }
+
+        if (is_session_expired($session)) {
+            send_json(404, ['error' => 'no-active-session']);
+        }
+
+        $hostToken = bin2hex(random_bytes(32));
+        $session['hostTokenHash'] = password_hash($hostToken, PASSWORD_DEFAULT);
+        $session['updatedAt'] = time();
+        save_session($session);
+
+        send_json(200, [
+            'sessionId' => $session['sessionId'],
+            'hostToken' => $hostToken,
+            'version' => $session['version'],
+        ]);
+    }
+
     if ($action === 'select-player' || $action === 'player') {
         $password = sanitize_string($body['password'] ?? '', 120);
         $playerId = sanitize_string($body['playerId'] ?? '', 80);
