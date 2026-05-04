@@ -11,10 +11,8 @@
 
     <ion-content class="ion-padding">
       <template v-if="!selectedGuest">
-        <ion-card>
-          <ion-card-header>
-            <ion-card-subtitle>Hotel</ion-card-subtitle>
-          </ion-card-header>
+        <ion-card with-header>
+          <card-colored-header title="Hotel"></card-colored-header>
           <ion-card-content>
             <ion-list v-if="visibleProperties.length" lines="none">
               <ion-item
@@ -46,10 +44,8 @@
           </ion-card-content>
         </ion-card>
 
-        <ion-card v-if="selectedPropertyOption">
-          <ion-card-header>
-            <ion-card-subtitle>Gast</ion-card-subtitle>
-          </ion-card-header>
+        <ion-card v-if="selectedPropertyOption" with-header>
+          <card-colored-header title="Gast"></card-colored-header>
           <ion-card-content>
             <ion-list v-if="guestOptions.length" lines="none">
               <ion-item
@@ -73,24 +69,26 @@
       </template>
 
       <template v-else-if="selectedHost && selectedPropertyOption">
+
         <ion-card>
           <ion-card-content>
-            <ion-list lines="none">
-              <ion-item>
-                <ion-label>Hotelbesitzer</ion-label>
-                <ion-note slot="end"><h1>{{ selectedHost.name }}</h1></ion-note>
-              </ion-item>
-              <ion-item>
-                <ion-label>Hotel</ion-label>
-                <ion-note slot="end"><h2>{{ selectedPropertyOption.property.name }}</h2></ion-note>
-              </ion-item>
-              <ion-item>
-                <ion-label>Gast</ion-label>
-                <ion-note slot="end"><h2>{{ selectedGuest.name }}</h2></ion-note>
-              </ion-item>
-            </ion-list>
-
-            <ion-button fill="clear" color="primary" @click="clearGuest">
+            <div class="x--info-row">
+              <h2>Hotelbesitzer</h2>
+              <p>{{ selectedHost.name }}</p>
+            </div>
+            <div class="x--info-row">
+              <h2>Hotel</h2>
+              <p>{{ selectedPropertyOption.property.name }}</p>
+            </div>
+            <div class="x--info-row">
+              <h2>Gast</h2>
+              <p>{{ selectedGuest.name }}</p>
+            </div>
+          </ion-card-content>
+        </ion-card>
+        <ion-card>
+          <ion-card-content>
+            <ion-button fill="solid" color="light" expand="block" @click="clearGuest" >
               Auswahl ändern
             </ion-button>
           </ion-card-content>
@@ -145,6 +143,7 @@ import { BankTransactionInterface } from '@/composables/useBankTransactionInterf
 import { useGameStore, type PlayerBalance, type PropertyOwnership } from '@/stores/game';
 import type { Property, PropertyImprovement } from '@/types';
 import PropertyStars from '@/components/PropertyStars.vue';
+import CardColoredHeader from '@/components/CardColoredHeader.vue';
 
 type PropertyOption = {
   key: PropertyKey;
@@ -340,4 +339,18 @@ async function rent(night: number) {
   grid-template-columns: repeat(6, minmax(2.5rem, 1fr));
   gap: 0.5rem;
 }
+
+.x--info-row {
+  color: #000;
+  display: flex;
+  justify-content: space-between;
+}
+.x--info-row h2 {
+  font-size: 1em;
+}
+.x--info-row p {
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
 </style>

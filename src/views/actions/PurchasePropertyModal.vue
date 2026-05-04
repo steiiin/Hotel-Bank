@@ -10,41 +10,9 @@
     </ion-header>
 
     <ion-content class="ion-padding">
-      <ion-card v-if="!props.playerId">
-        <ion-card-header>
-          <ion-card-subtitle>Spieler</ion-card-subtitle>
-        </ion-card-header>
-        <ion-card-content>
-          <ion-list lines="inset">
-            <ion-item
-              v-for="player in visiblePlayers"
-              :key="player.id"
-              button
-              :detail="!selectedPlayer"
-              @click="selectPlayer(player)"
-            >
-              <ion-label>
-                <h2>{{ player.name }}</h2>
-                <p>Kontostand: {{ player.balance }}</p>
-              </ion-label>
-              <ion-button
-                v-if="selectedPlayer"
-                slot="end"
-                fill="clear"
-                color="medium"
-                @click.stop="clearPlayer"
-              >
-                Wechseln
-              </ion-button>
-            </ion-item>
-          </ion-list>
-        </ion-card-content>
-      </ion-card>
 
-      <ion-card v-if="selectedPlayer">
-        <ion-card-header>
-          <ion-card-subtitle>Grundstücke</ion-card-subtitle>
-        </ion-card-header>
+      <ion-card v-if="selectedPlayer" with-header>
+        <card-colored-header title="Grundstücke"></card-colored-header>
         <ion-card-content>
           <ion-list v-if="availableProperties.length" lines="none">
             <ion-item v-for="propertyOption in availableProperties" :key="propertyOption.key">
@@ -102,6 +70,7 @@ import { properties, propertyKeys, type PropertyKey } from '@/data/properties';
 import { BankTransactionInterface } from '@/composables/useBankTransactionInterface';
 import { useGameStore, type PlayerBalance } from '@/stores/game';
 import type { Property } from '@/types';
+import CardColoredHeader from '@/components/CardColoredHeader.vue';
 
 type PropertyOption = {
   key: PropertyKey;

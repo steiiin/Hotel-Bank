@@ -50,8 +50,10 @@
               @click="selectProperty(propertyOption)">
               <ion-label>
                 <h2>{{ propertyOption.property.name }}</h2>
-                <p>Nächster Ausbau: {{ propertyOption.nextImprovement.name }}</p>
-                <p>Preis: {{ propertyOption.nextImprovement.price }}</p>
+                <p>
+                  <b>Nächster Ausbau:</b> {{ propertyOption.nextImprovement.name }}<br>
+                  <b>Preis:</b> {{ propertyOption.nextImprovement.price }}€
+                </p>
               </ion-label>
               <ion-button
                 v-if="selectedPropertyOption && propertyOptions.length > 1"
@@ -70,10 +72,8 @@
         </ion-card-content>
       </ion-card>
 
-      <ion-card v-if="selectedPropertyOption">
-        <ion-card-header>
-          <ion-card-subtitle>Nächster Ausbau</ion-card-subtitle>
-        </ion-card-header>
+      <ion-card v-if="selectedPropertyOption" with-header>
+        <card-colored-header title="Nächster Ausbau"></card-colored-header>
         <ion-card-content>
           <ion-list lines="none">
             <ion-item>
@@ -135,6 +135,7 @@ import { properties, type PropertyKey } from '@/data/properties';
 import { BankTransactionInterface } from '@/composables/useBankTransactionInterface';
 import { useGameStore, type PlayerBalance } from '@/stores/game';
 import type { Property, PropertyImprovement } from '@/types';
+import CardColoredHeader from '@/components/CardColoredHeader.vue';
 
 type Permit = 'NORMAL' | 'FREE' | 'DOUBLE';
 

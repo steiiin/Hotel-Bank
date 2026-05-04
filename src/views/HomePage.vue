@@ -5,7 +5,6 @@
         <ion-title>Hotel-Bank</ion-title>
       </ion-toolbar>
     </ion-header>
-
     <ion-content :fullscreen="true">
       <ion-header collapse="condense">
         <ion-toolbar>
@@ -24,7 +23,7 @@
 
       <IonAlert
         :is-open="showBankPasswordDialog"
-        header="Spieler-Passwort"
+        header="Session-Passwort"
         :message="bankPasswordDialogMessage"
         :inputs="[
           {
@@ -60,7 +59,6 @@ const bankPasswordDialogMessage = computed(() => {
   if (bankPasswordError.value) {
     return bankPasswordError.value;
   }
-
   return 'Dieses Passwort verwenden Spieler später zum Beitreten.';
 });
 

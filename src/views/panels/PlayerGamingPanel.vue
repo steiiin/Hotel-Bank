@@ -8,10 +8,10 @@
 
     </ion-card-content>
   </ion-card>
-  <ion-card v-if="visibleProperties.length>0">
+  <ion-card v-for="property in visibleProperties" :key="property.key">
     <ion-card-content style="padding:0">
       <ion-list lines="none">
-        <ion-item v-for="property in visibleProperties" :key="property.key">
+        <ion-item>
           <ion-label>
             <h2>{{ property.name }}</h2>
             <template v-if="property.latestImprovement">

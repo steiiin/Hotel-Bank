@@ -1,17 +1,15 @@
 <template>
   <ion-page>
-    <ion-header :translucent="true">
+    <ion-header>
       <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-back-button></ion-back-button>
+        </ion-buttons>
         <ion-title>{{ titleLabel }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true">
-      <ion-header collapse="condense">
-        <ion-toolbar>
-          <ion-title size="large">{{ titleLabel }}</ion-title>
-        </ion-toolbar>
-      </ion-header>
+    <ion-content>
 
       <section class="player-page">
 
@@ -24,16 +22,13 @@
         />
 
         <ion-list v-else inset>
-          <ion-list-header>
-            <ion-label>Spieler beitreten</ion-label>
-          </ion-list-header>
           <ion-item>
-            <ion-input
+            <ion-input ref="passwordInput"
               v-model="joinPassword"
               type="password"
               label="Passwort"
               label-placement="stacked"
-              placeholder="Host-Passwort"
+              placeholder="Session-Passwort"
               @keyup.enter="joinHostSession"
             />
           </ion-item>
@@ -70,19 +65,26 @@
           </p>
         </ion-text>
 
-        <ion-text v-if="scanError" color="danger">
-          <p>{{ scanError }}</p>
-        </ion-text>
+        <ion-card v-if="scanError" color="danger">
+          <ion-card-content>
+            {{ scanError }}
+          </ion-card-content>
+        </ion-card>
+
       </section>
     </ion-content>
   </ion-page>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import {
+  IonBackButton,
   IonButton,
+  IonButtons,
+  IonCard,
+  IonCardContent,
   IonContent,
   IonHeader,
   IonInput,
@@ -125,6 +127,8 @@ const connectionLabel = computed(() => {
   return 'Verbunden';
 });
 
+const passwordInput = ref<any|null>(null)
+
 function applyPlayerUpdate(update: PlayerUpdate) {
   gameStore.setActivePlayerSession({
     id: update.player.id,
@@ -155,7 +159,7 @@ async function joinHostSession() {
   } catch (error) {
     availablePlayers.value = [];
     selectedPlayerId.value = '';
-    scanError.value = error instanceof Error ? error.message : 'join-failed';
+    scanError.value = 'Keine Session mit diesem Kennwort gefunden.';
   } finally {
     isJoining.value = false;
   }
@@ -193,7 +197,11 @@ async function selectJoinedPlayer() {
     isSelecting.value = false;
   }
 }
-
+onMounted(() => {
+  setTimeout(() => {
+    passwordInput.value.$el.setFocus?.()
+  }, 300)
+});
 onBeforeUnmount(() => {
   subscription?.close();
 });
