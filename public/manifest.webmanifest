@@ -1,7 +1,7 @@
 {
   "name": "Hotel Bank",
   "short_name": "Hotel Bank",
-  "description": "Hotel Bank game companion app",
+  "description": "Hotel Brettspiel Bank Manager App",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
