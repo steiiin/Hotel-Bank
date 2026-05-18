@@ -83,7 +83,7 @@ import BankConfigPanel from './panels/BankConfigPanel.vue';
 import BankManagementPanel from './panels/BankManagementPanel.vue';
 import PlayerGamingPanel from './panels/PlayerGamingPanel.vue';
 import WakeLockPrompt from '@/components/WakeLockPrompt.vue';
-
+import PropertyStars from '@/components/PropertyStars.vue';
 const gameStore = useGameStore();
 const {
   activeTab,

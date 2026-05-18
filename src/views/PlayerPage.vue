@@ -34,16 +34,18 @@
                 <ion-list v-if="player.properties.length" lines="none">
                   <ion-item v-for="property in player.properties" :key="property.key">
                     <ion-label>
-                      <h4>{{ property.name }}</h4>
-                      <template v-if="property.latestImprovement">
+                      <div v-if="property.latestImprovement" class="small-props">
+                        <h4>{{ property.name }}</h4>
                         <PropertyStars :stars="property.latestImprovement.stars" />
-                        <p><b>{{ property.latestImprovement.name }}</b> - {{ formatEntranceCount(property.entranceCount) }}</p>
-                      </template>
-                      <p v-else><b>Unbebaut</b></p>
+                      </div>
+                      <div v-else class="small-props">
+                        <h4>{{ property.name }}</h4>
+                        <p><b>Unbebaut</b></p>
+                      </div>
                     </ion-label>
                   </ion-item>
                 </ion-list>
-                <p v-else class="empty-properties">Keine Grundstücke</p>
+                <p v-else class="empty-properties">Noch keine Grundstücke</p>
               </ion-card-content>
             </ion-card>
           </section>
@@ -372,4 +374,11 @@ ion-text p {
   color: var(--ion-color-medium);
   margin: 0;
 }
+
+.small-props {
+  display: flex;
+  gap: .5rem;
+}
+
+
 </style>

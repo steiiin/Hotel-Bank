@@ -1,12 +1,8 @@
 <template>
-  <ion-card v-if="show" color="success" class="wake-lock-card">
+  <ion-card v-if="show" class="wake-lock-card">
     <ion-card-content>
-      <div class="wake-lock-card-text">
-        <h3>Bildschirmsperre aktivieren</h3>
-        <p>Tippe hier, damit der Bildschirm beim Spielen eingeschaltet bleibt.</p>
-      </div>
       <ion-button expand="block" @click="activate" :disabled="isActivating">
-        {{ isActivating ? 'Aktivierung...' : 'Aktivieren' }}
+        {{ isActivating ? 'Aktivierung...' : 'Bildschirmsperre aktivieren' }}
       </ion-button>
     </ion-card-content>
   </ion-card>
