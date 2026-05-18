@@ -1,5 +1,5 @@
 import { computed, ref, watch, type WatchStopHandle } from 'vue';
-import { closeSession, createSession, publishSession, resumeHostSession as resumeHostSessionRequest } from '@/services/gameSessionApi';
+import { GameSessionApiError, closeSession, createSession, publishSession, resumeHostSession as resumeHostSessionRequest } from '@/services/gameSessionApi';
 import { createPublishedPlayers } from '@/services/sessionSnapshot';
 import { useGameStore } from '@/stores/game';
 
@@ -202,6 +202,11 @@ async function closeHostSession() {
     clearHostSession();
     return true;
   } catch (error) {
+    if (error instanceof GameSessionApiError && error.code === 'invalid-host-token') {
+      clearHostSession();
+      return true;
+    }
+
     hostSessionError.value = error instanceof Error ? error.message : 'close-session-failed';
     return false;
   } finally {
