@@ -64,7 +64,7 @@ async function publishCurrentSnapshot() {
   try {
     const response = await publishSession(
       hostToken.value,
-      createPublishedPlayers(gameStore.playerBalances, gameStore.propertyOwnerships),
+      createPublishedPlayers(gameStore.playerBalances, gameStore.propertyOwnerships, { includeBankPlayer: true }),
     );
     hostSessionId.value = response.sessionId;
     hostSessionVersion.value = response.version;

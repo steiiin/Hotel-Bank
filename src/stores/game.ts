@@ -30,6 +30,17 @@ export type PlayerSession = {
     boughtImprovements: boolean[];
     entranceCount: number;
   }[];
+  players?: {
+    id: string;
+    name: string;
+    balance: number;
+    properties: {
+      key: string;
+      name: string;
+      boughtImprovements: boolean[];
+      entranceCount: number;
+    }[];
+  }[];
   version?: number;
 };
 
@@ -276,6 +287,7 @@ export const useGameStore = defineStore('game', () => {
       startingCapital: player.startingCapital || 0,
       balance: player.balance,
       properties: player.properties ?? [],
+      players: player.players ?? [],
       version: player.version,
     };
   }

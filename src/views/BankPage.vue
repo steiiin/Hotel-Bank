@@ -7,6 +7,12 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <WakeLockPrompt
+        :show="showWakeLockPrompt"
+        :isActivating="wakeLockActivating"
+        @activate="activateWakeLock"
+      />
+
       <ion-header collapse="condense">
         <ion-toolbar>
           <ion-title size="large">Bank</ion-title>
@@ -52,6 +58,13 @@
 
         </nav>
       </ion-toolbar>
+      <ion-toast
+        :is-open="toastOpen"
+        :message="toastMessage"
+        :color="toastColor"
+        duration="2000"
+        @didDismiss="toastOpen = false"
+      />
     </ion-footer>
   </ion-page>
 
@@ -59,8 +72,9 @@
 
 <script setup lang="ts">
 
+import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { IonButton, IonContent, IonFooter, IonHeader, IonIcon, IonLabel, IonPage, IonTitle, IonToolbar } from '@ionic/vue';
+import { IonButton, IonContent, IonFooter, IonHeader, IonIcon, IonLabel, IonPage, IonTitle, IonToast, IonToolbar } from '@ionic/vue';
 import { gameControllerOutline, personCircleOutline, walletOutline } from 'ionicons/icons';
 import { useGameStore } from '@/stores/game';
 import { useHostGameSession } from '@/composables/useHostGameSession';
@@ -68,6 +82,7 @@ import { useWakeLock } from '@/composables/useWakeLock';
 import BankConfigPanel from './panels/BankConfigPanel.vue';
 import BankManagementPanel from './panels/BankManagementPanel.vue';
 import PlayerGamingPanel from './panels/PlayerGamingPanel.vue';
+import WakeLockPrompt from '@/components/WakeLockPrompt.vue';
 
 const gameStore = useGameStore();
 const {
@@ -85,7 +100,31 @@ const {
 const { addPlayer, removePlayer } = gameStore;
 const { startHostPublishing } = useHostGameSession();
 
-useWakeLock();
+const wakeLockActivating = ref(false);
+const toastOpen = ref(false);
+const toastMessage = ref('');
+const toastColor = ref<'success' | 'danger'>('success');
+
+const {
+  requestWakeLock,
+  isSupported: wakeLockSupported,
+  isActive: wakeLockActive,
+} = useWakeLock();
+
+const showWakeLockPrompt = computed(() => wakeLockSupported.value && !wakeLockActive.value);
+
+async function activateWakeLock() {
+  wakeLockActivating.value = true;
+  const success = await requestWakeLock();
+  wakeLockActivating.value = false;
+
+  toastMessage.value = success
+    ? 'Bildschirmsperre aktiviert.'
+    : 'Bildschirmsperre konnte nicht aktiviert werden.';
+  toastColor.value = success ? 'success' : 'danger';
+  toastOpen.value = true;
+}
+
 startHostPublishing();
 
 </script>

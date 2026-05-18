@@ -245,10 +245,12 @@ function sanitize_player(mixed $player): ?array
 
 function public_players(array $session): array
 {
-    return array_map(static fn (array $player): array => [
+    $players = array_filter($session['players'] ?? [], static fn (array $player): bool => ($player['id'] ?? '') !== 'bank-player');
+
+    return array_values(array_map(static fn (array $player): array => [
         'id' => $player['id'],
         'name' => $player['name'],
-    ], $session['players'] ?? []);
+    ], $players));
 }
 
 function player_token(array $session, string $playerId): string
@@ -264,6 +266,7 @@ function selected_player_response(array $session, string $playerId, bool $includ
                 'sessionId' => $session['sessionId'],
                 'version' => $session['version'],
                 'player' => $player,
+                'players' => array_values($session['players'] ?? []),
             ];
 
             if ($includePlayerToken) {

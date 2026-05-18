@@ -89,6 +89,7 @@ function selected_player_response(array $session, string $playerId): ?array
                 'sessionId' => $session['sessionId'],
                 'version' => $session['version'],
                 'player' => $player,
+                'players' => array_values($session['players'] ?? []),
             ];
         }
     }

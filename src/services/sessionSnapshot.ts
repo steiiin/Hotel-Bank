@@ -26,14 +26,16 @@ export type PlayerUpdate = {
   sessionId: string;
   version: number;
   player: PublishedPlayer;
+  players: PublishedPlayer[];
   playerToken?: string;
 };
 
 export function createPublishedPlayers(
   playerBalances: PlayerBalance[],
   propertyOwnerships: PropertyOwnership[],
+  options: { includeBankPlayer?: boolean } = {},
 ): PublishedPlayer[] {
-  return playerBalances.filter((player) => player.id !== BANK_PLAYER_ID).map((player) => ({
+  return playerBalances.filter((player) => options.includeBankPlayer || player.id !== BANK_PLAYER_ID).map((player) => ({
     id: player.id,
     name: player.name,
     balance: player.balance,

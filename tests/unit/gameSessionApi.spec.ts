@@ -117,6 +117,10 @@ describe('game session api', () => {
         balance: 16000,
         properties: [],
       },
+      players: [
+        { id: 'player-1', name: 'Alice', balance: 16000, properties: [] },
+        { id: 'player-2', name: 'Bob', balance: 15000, properties: [] },
+      ],
     }));
     const onUpdate = vi.fn();
     const onModeChange = vi.fn();
@@ -134,7 +138,12 @@ describe('game session api', () => {
     await vi.advanceTimersByTimeAsync(1);
 
     expect(onModeChange).toHaveBeenCalledWith('poll');
-    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ version: 2 }));
+    expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      version: 2,
+      players: expect.arrayContaining([
+        expect.objectContaining({ id: 'player-2', name: 'Bob' }),
+      ]),
+    }));
     expect(fetchMock).toHaveBeenCalledWith('/api/session.php?action=select-player', expect.objectContaining({
       body: JSON.stringify({ password: 'secret', playerId: 'player-1' }),
     }));
@@ -178,11 +187,19 @@ describe('game session api', () => {
         balance: 18000,
         properties: [],
       },
+      players: [
+        { id: 'player-1', name: 'Alice', balance: 18000, properties: [] },
+        { id: 'bank-player', name: 'Bank Alice', balance: 15000, properties: [] },
+      ],
     }));
 
     await expect(selectPlayer('secret', 'player-1')).resolves.toMatchObject({
       version: 3,
       player: { id: 'player-1', balance: 18000 },
+      players: [
+        { id: 'player-1', name: 'Alice', balance: 18000, properties: [] },
+        { id: 'bank-player', name: 'Bank Alice', balance: 15000, properties: [] },
+      ],
     });
   });
 });

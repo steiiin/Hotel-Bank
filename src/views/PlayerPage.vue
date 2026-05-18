@@ -12,14 +12,42 @@
     <ion-content>
 
       <section class="player-page">
-
-        <PlayerGamingPanel
-          v-if="activePlayerSession"
-          :player-name="activePlayerSession.name"
-          :starting-capital="activePlayerSession.startingCapital"
-          :balance="activePlayerSession.balance"
-          :properties="activePlayerSession.properties"
+        <WakeLockPrompt
+          :show="showWakeLockPrompt"
+          :isActivating="wakeLockActivating"
+          @activate="activateWakeLock"
         />
+
+        <template v-if="activePlayerSession">
+          <PlayerGamingPanel
+            :player-name="activePlayerSession.name"
+            :starting-capital="activePlayerSession.startingCapital"
+            :balance="activePlayerSession.balance"
+            :properties="activePlayerSession.properties"
+          />
+
+          <section v-if="otherPlayerOverviews.length" class="player-overviews" aria-label="Andere Spieler">
+            <h2>Andere Spieler</h2>
+            <ion-card v-for="player in otherPlayerOverviews" :key="player.id">
+              <ion-card-content>
+                <h3>{{ player.name }}</h3>
+                <ion-list v-if="player.properties.length" lines="none">
+                  <ion-item v-for="property in player.properties" :key="property.key">
+                    <ion-label>
+                      <h4>{{ property.name }}</h4>
+                      <template v-if="property.latestImprovement">
+                        <PropertyStars :stars="property.latestImprovement.stars" />
+                        <p><b>{{ property.latestImprovement.name }}</b> - {{ formatEntranceCount(property.entranceCount) }}</p>
+                      </template>
+                      <p v-else><b>Unbebaut</b></p>
+                    </ion-label>
+                  </ion-item>
+                </ion-list>
+                <p v-else class="empty-properties">Keine Grundstücke</p>
+              </ion-card-content>
+            </ion-card>
+          </section>
+        </template>
 
         <ion-list v-else inset>
           <ion-item>
@@ -71,6 +99,14 @@
           </ion-card-content>
         </ion-card>
 
+        <ion-toast
+          :is-open="toastOpen"
+          :message="toastMessage"
+          :color="toastColor"
+          duration="2000"
+          @didDismiss="toastOpen = false"
+        />
+
       </section>
     </ion-content>
   </ion-page>
@@ -91,20 +127,32 @@ import {
   IonItem,
   IonLabel,
   IonList,
-  IonListHeader,
   IonPage,
   IonSelect,
   IonSelectOption,
   IonText,
   IonTitle,
+  IonToast,
   IonToolbar,
   onIonViewWillLeave,
 } from '@ionic/vue';
 import { useGameStore } from '@/stores/game';
 import { joinSession, selectPlayer, subscribeToPlayerUpdates, type PlayerSubscription } from '@/services/gameSessionApi';
-import type { PublishedPlayerSummary, PlayerUpdate } from '@/services/sessionSnapshot';
+import type { PublishedPlayer, PublishedPlayerProperty, PublishedPlayerSummary, PlayerUpdate } from '@/services/sessionSnapshot';
 import { useWakeLock } from '@/composables/useWakeLock';
+import { properties as hotelProperties, type PropertyKey } from '@/data/properties';
+import type { PropertyImprovement } from '@/types';
+import PropertyStars from '@/components/PropertyStars.vue';
 import PlayerGamingPanel from './panels/PlayerGamingPanel.vue';
+import WakeLockPrompt from '@/components/WakeLockPrompt.vue';
+
+type VisibleOverviewProperty = PublishedPlayerProperty & {
+  latestImprovement: PropertyImprovement | null;
+};
+
+type PlayerOverview = Omit<PublishedPlayer, 'properties' | 'balance'> & {
+  properties: VisibleOverviewProperty[];
+};
 
 const gameStore = useGameStore();
 const { activePlayerSession } = storeToRefs(gameStore);
@@ -116,9 +164,19 @@ const isJoining = ref(false);
 const isSelecting = ref(false);
 const connectionMode = ref<'sse' | 'poll' | null>(null);
 const playerToken = ref('');
+const wakeLockActivating = ref(false);
+const toastOpen = ref(false);
+const toastMessage = ref('');
+const toastColor = ref<'success' | 'danger'>('success');
 let subscription: PlayerSubscription | null = null;
 
-useWakeLock();
+const {
+  requestWakeLock,
+  isSupported: wakeLockSupported,
+  isActive: wakeLockActive,
+} = useWakeLock();
+
+const showWakeLockPrompt = computed(() => wakeLockSupported.value && !wakeLockActive.value);
 
 const titleLabel = computed(() => activePlayerSession.value ? activePlayerSession.value.name : 'Spieler')
 const connectionLabel = computed(() => {
@@ -130,6 +188,15 @@ const connectionLabel = computed(() => {
   }
   return 'Verbunden';
 });
+const otherPlayerOverviews = computed<PlayerOverview[]>(() => (
+  (activePlayerSession.value?.players ?? [])
+    .filter(player => player.id !== activePlayerSession.value?.id)
+    .map(player => ({
+      id: player.id,
+      name: player.name,
+      properties: player.properties.map(toVisibleOverviewProperty),
+    }))
+));
 
 const passwordInput = ref<any|null>(null)
 
@@ -140,9 +207,31 @@ function applyPlayerUpdate(update: PlayerUpdate) {
     startingCapital: update.player.balance,
     balance: update.player.balance,
     properties: update.player.properties,
+    players: update.players,
     version: update.version,
   });
   scanError.value = '';
+}
+
+function toVisibleOverviewProperty(property: PublishedPlayerProperty): VisibleOverviewProperty {
+  return {
+    ...property,
+    latestImprovement: getLatestImprovement(property),
+  };
+}
+
+function getLatestImprovement(property: { key: string; boughtImprovements: boolean[] }) {
+  const improvementIndex = property.boughtImprovements.findLastIndex(Boolean);
+
+  if (improvementIndex === -1) {
+    return null;
+  }
+
+  return hotelProperties[property.key as PropertyKey]?.improvements[improvementIndex] ?? null;
+}
+
+function formatEntranceCount(entranceCount: number) {
+  return `${entranceCount} Eingang${entranceCount === 1 ? '' : 'e'}`;
 }
 
 async function joinHostSession() {
@@ -211,10 +300,22 @@ function closePlayerConnection() {
   gameStore.clearActivePlayerSession();
 }
 
+async function activateWakeLock() {
+  wakeLockActivating.value = true;
+  const success = await requestWakeLock();
+  wakeLockActivating.value = false;
+
+  toastMessage.value = success
+    ? 'Bildschirmsperre aktiviert.'
+    : 'Bildschirmsperre konnte nicht aktiviert werden.';
+  toastColor.value = success ? 'success' : 'danger';
+  toastOpen.value = true;
+}
+
 onMounted(() => {
   setTimeout(() => {
-    passwordInput.value?.$el.setFocus?.()
-  }, 300)
+    passwordInput.value?.$el.setFocus?.();
+  }, 300);
 });
 
 onIonViewWillLeave(() => {
@@ -241,5 +342,34 @@ ion-text p {
 
 .connection-status {
   font-size: 0.85rem;
+}
+
+.player-overviews {
+  margin: 1.5rem 0 0;
+}
+
+.player-overviews > h2 {
+  color: var(--ion-color-medium);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 1rem 0.5rem;
+}
+
+.player-overviews h3 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+.player-overviews h4 {
+  font-size: 1rem;
+}
+
+.player-overviews ion-list {
+  margin: 0 -1rem -1rem;
+}
+
+.empty-properties {
+  color: var(--ion-color-medium);
+  margin: 0;
 }
 </style>

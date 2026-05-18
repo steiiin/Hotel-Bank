@@ -14,10 +14,10 @@
     </ion-card-content>
   </ion-card>
 
-  <ion-card>
+  <ion-card v-if="canOpenRentModal">
     <ion-card-content>
       <ion-button
-        @click="showRentModal = true" expand="block">Übernachten
+        @click="showRentModal = true" expand="block" color="dark">Übernachten
       </ion-button>
     </ion-card-content>
   </ion-card>
@@ -76,7 +76,8 @@
         </ion-card>
       </div>
       <div class="actions-grid">
-        <ion-card button
+        <ion-card v-if="canPurchaseProperty"
+          button
           @click="queuePurchaseAction(() => openPurchaseModal('property'))">
           <ion-card-content>
             <ion-img src="/assets/btn-kauf.png" />
@@ -85,14 +86,16 @@
         </ion-card>
       </div>
       <div class="actions-grid">
-        <ion-card button
+        <ion-card v-if="canPurchaseImprovement"
+          button
           @click="queuePurchaseAction(() => openPurchaseModal('improvement'))">
           <ion-card-content>
             <ion-img src="/assets/btn-ausbau.png" />
             <h2>Grundstück ausbauen</h2>
           </ion-card-content>
         </ion-card>
-        <ion-card button
+        <ion-card v-if="canPurchaseImprovement"
+          button
           @click="queuePurchaseAction(() => openPurchaseModal('free-improvement'))">
           <ion-card-content>
             <ion-img src="/assets/btn-free-ausbau.png" />
@@ -101,7 +104,8 @@
         </ion-card>
       </div>
       <div class="actions-grid single">
-        <ion-card button color="warning"
+        <ion-card v-if="canPurchaseEntrance"
+          button color="warning"
           @click="queuePurchaseAction(() => openPurchaseModal('entrances'))">
           <ion-card-content>
             <h2 style="color:#000"><b>Eingänge</b> kaufen</h2>
@@ -109,7 +113,8 @@
         </ion-card>
       </div>
       <div class="actions-grid">
-        <ion-card button
+        <ion-card v-if="canPurchaseEntrance"
+          button
           @click="queuePurchaseAction(() => openPurchaseModal('free-entrance'))">
           <ion-card-content>
             <ion-img src="/assets/btn-free-entrance.png" />
@@ -135,7 +140,9 @@ import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { IonActionSheet, IonCard, IonCardContent, IonButton, IonItem, IonLabel, IonList, IonModal, IonCardHeader, IonTitle, IonContent, IonHeader, IonToolbar, IonButtons, IonIcon, IonImg } from '@ionic/vue';
 import { BankTransactionInterface } from '@/composables/useBankTransactionInterface';
-import { useGameStore, type PlayerBalance } from '@/stores/game';
+import { properties, propertyKeys, type PropertyKey } from '@/data/properties';
+import { useGameStore, type PlayerBalance, type PropertyOwnership } from '@/stores/game';
+import type { Property } from '@/types';
 import BankruptcyModal from '@/views/actions/BankruptcyModal.vue';
 import FreeEntranceModal from '@/views/actions/FreeEntranceModal.vue';
 import PurchaseEntrancesModal from '@/views/actions/PurchaseEntrancesModal.vue';
@@ -144,7 +151,7 @@ import PurchasePropertyModal from '@/views/actions/PurchasePropertyModal.vue';
 import RentModal from '@/views/actions/RentModal.vue';
 
 const gameStore = useGameStore();
-const { activeBankruptcySettlement, playerAccountOverviews, playerBalances } = storeToRefs(gameStore);
+const { activeBankruptcySettlement, playerAccountOverviews, playerBalances, propertyOwnershipMap, propertyOwnerships } = storeToRefs(gameStore);
 const showFreeEntranceModal = ref(false);
 const showFreeImprovementModal = ref(false);
 const showPurchaseEntrancesModal = ref(false);
@@ -157,6 +164,21 @@ const queuedPurchaseAction = ref<(() => void | Promise<void>) | null>(null);
 const purchaseActionPlayer = computed(() => (
   playerBalances.value.find(player => player.id === purchaseActionPlayerId.value) ?? null
 ));
+const canOpenRentModal = computed(() => propertyOwnerships.value.some((ownership) => (
+  (ownership.entranceCount ?? 0) > 0 && hasFirstImprovement(ownership)
+)));
+const canPurchaseProperty = computed(() => {
+  const player = purchaseActionPlayer.value;
+  return Boolean(player && hasPurchasableProperty(player.id));
+});
+const canPurchaseImprovement = computed(() => {
+  const player = purchaseActionPlayer.value;
+  return Boolean(player && hasOpenImprovement(player.id));
+});
+const canPurchaseEntrance = computed(() => {
+  const player = purchaseActionPlayer.value;
+  return Boolean(player && hasOpenEntrance(player.id));
+});
 
 type PurchaseAction = 'property' | 'improvement' | 'free-improvement' | 'entrances' | 'free-entrance';
 
@@ -184,6 +206,48 @@ function openPurchaseModal(action: PurchaseAction) {
   showFreeImprovementModal.value = action === 'free-improvement';
   showPurchaseEntrancesModal.value = action === 'entrances';
   showFreeEntranceModal.value = action === 'free-entrance';
+}
+
+function hasPurchasableProperty(playerId: string) {
+  return propertyKeys.some((propertyKey) => {
+    const ownership = propertyOwnershipMap.value.get(propertyKey as PropertyKey);
+    return !ownership || (ownership.ownerId !== playerId && !hasAnyImprovement(ownership));
+  });
+}
+
+function hasOpenImprovement(playerId: string) {
+  return propertyOwnerships.value.some((ownership) => (
+    ownership.ownerId === playerId
+    && hasUnboughtImprovement(ownership)
+  ));
+}
+
+function hasOpenEntrance(playerId: string) {
+  return propertyOwnerships.value.some((ownership) => {
+    const property = properties[ownership.propertyKey];
+    return Boolean(
+      ownership.ownerId === playerId
+      && hasFirstImprovement(ownership)
+      && property
+      && hasOpenEntranceSlot(property, ownership.entranceCount ?? 0)
+    );
+  });
+}
+
+function hasAnyImprovement(ownership: PropertyOwnership) {
+  return ownership.boughtImprovements.some(Boolean);
+}
+
+function hasFirstImprovement(ownership: PropertyOwnership) {
+  return ownership.boughtImprovements[0] === true;
+}
+
+function hasUnboughtImprovement(ownership: PropertyOwnership) {
+  return ownership.boughtImprovements.some(isBought => !isBought);
+}
+
+function hasOpenEntranceSlot(property: Property, entranceCount: number) {
+  return property.maxEntrances <= 0 || entranceCount < property.maxEntrances;
 }
 
 async function passedBank() {

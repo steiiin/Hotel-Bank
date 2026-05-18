@@ -1,4 +1,4 @@
-import { onBeforeUnmount } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { onIonViewDidEnter, onIonViewWillLeave } from '@ionic/vue';
 
 type WakeLockSentinel = {
@@ -17,32 +17,45 @@ type WakeLockNavigator = Navigator & {
 export function useWakeLock() {
   let wakeLock: WakeLockSentinel | null = null;
   let shouldKeepAwake = false;
+  const isSupported = ref(Boolean((navigator as WakeLockNavigator).wakeLock));
+  const isActive = ref(false);
 
   const handleWakeLockRelease = () => {
     wakeLock = null;
+    isActive.value = false;
   };
 
-  async function requestWakeLock() {
-    if (wakeLock || document.visibilityState !== 'visible') {
-      return;
-    }
-
+  async function requestWakeLockInternal() {
     const wakeLockApi = (navigator as WakeLockNavigator).wakeLock;
-    if (!wakeLockApi) {
-      return;
+    if (!wakeLockApi || document.visibilityState !== 'visible') {
+      isActive.value = false;
+      return false;
     }
 
     try {
       wakeLock = await wakeLockApi.request('screen');
       wakeLock.addEventListener('release', handleWakeLockRelease);
+      isActive.value = true;
+      return true;
     } catch {
       wakeLock = null;
+      isActive.value = false;
+      return false;
     }
+  }
+
+  async function requestWakeLock() {
+    if (wakeLock || document.visibilityState !== 'visible') {
+      return isActive.value;
+    }
+
+    return requestWakeLockInternal();
   }
 
   async function releaseWakeLock() {
     const currentWakeLock = wakeLock;
     wakeLock = null;
+    isActive.value = false;
 
     if (!currentWakeLock) {
       return;
@@ -77,4 +90,10 @@ export function useWakeLock() {
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     void releaseWakeLock();
   });
+
+  return {
+    isSupported: computed(() => isSupported.value),
+    isActive: computed(() => isActive.value),
+    requestWakeLock,
+  };
 }
