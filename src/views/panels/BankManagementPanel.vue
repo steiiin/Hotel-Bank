@@ -278,6 +278,7 @@ function closeAllActionModals() {
   queuedPurchaseAction.value = null;
   purchaseActionPlayerId.value = null;
 }
+
 </script>
 
 <style scoped>
