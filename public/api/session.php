@@ -2,8 +2,9 @@
 declare(strict_types=1);
 
 const DATA_DIR = __DIR__ . '/data';
-const SESSION_FILE = DATA_DIR . '/session.json';
-const SESSION_MAX_AGE_SECONDS = 10800;
+const LEGACY_SESSION_FILE = DATA_DIR . '/session.json';
+const SESSIONS_DIR = DATA_DIR . '/sessions';
+const SESSION_MAX_AGE_SECONDS = 86400;
 
 function send_json(int $status, array $payload): void
 {
@@ -37,6 +38,10 @@ function ensure_data_dir(): void
     if (!is_dir(DATA_DIR) && !mkdir(DATA_DIR, 0775, true) && !is_dir(DATA_DIR)) {
         send_json(500, ['error' => 'data-dir-unavailable']);
     }
+
+    if (!is_dir(SESSIONS_DIR) && !mkdir(SESSIONS_DIR, 0775, true) && !is_dir(SESSIONS_DIR)) {
+        send_json(500, ['error' => 'sessions-dir-unavailable']);
+    }
 }
 
 function with_session_lock(callable $callback): void
@@ -53,6 +58,8 @@ function with_session_lock(callable $callback): void
             send_json(500, ['error' => 'lock-failed']);
         }
 
+        migrate_legacy_session();
+        prune_expired_sessions();
         $callback();
     } finally {
         flock($lock, LOCK_UN);
@@ -60,13 +67,25 @@ function with_session_lock(callable $callback): void
     }
 }
 
-function load_session(): ?array
+function sanitize_string(mixed $value, int $maxLength = 120): string
 {
-    if (!is_file(SESSION_FILE)) {
+    $value = is_string($value) ? trim($value) : '';
+    return substr($value, 0, $maxLength);
+}
+
+function session_path(string $sessionId): string
+{
+    $safeSessionId = preg_replace('/[^a-f0-9]/i', '', $sessionId) ?? '';
+    return SESSIONS_DIR . '/' . $safeSessionId . '.json';
+}
+
+function read_session_file(string $path): ?array
+{
+    if (!is_file($path)) {
         return null;
     }
 
-    $contents = file_get_contents(SESSION_FILE);
+    $contents = file_get_contents($path);
     if ($contents === false || trim($contents) === '') {
         return null;
     }
@@ -77,16 +96,111 @@ function load_session(): ?array
 
 function save_session(array $session): void
 {
+    $sessionId = sanitize_string($session['sessionId'] ?? '', 80);
+    if ($sessionId === '') {
+        send_json(500, ['error' => 'session-id-missing']);
+    }
+
     $encoded = json_encode($session, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-    if ($encoded === false || file_put_contents(SESSION_FILE, $encoded, LOCK_EX) === false) {
+    if ($encoded === false || file_put_contents(session_path($sessionId), $encoded, LOCK_EX) === false) {
         send_json(500, ['error' => 'session-write-failed']);
     }
 }
 
-function sanitize_string(mixed $value, int $maxLength = 120): string
+function delete_session(array $session): bool
 {
-    $value = is_string($value) ? trim($value) : '';
-    return substr($value, 0, $maxLength);
+    $sessionId = sanitize_string($session['sessionId'] ?? '', 80);
+    if ($sessionId === '') {
+        return false;
+    }
+
+    $path = session_path($sessionId);
+    return !is_file($path) || unlink($path);
+}
+
+function all_sessions(): array
+{
+    $sessions = [];
+    foreach (glob(SESSIONS_DIR . '/*.json') ?: [] as $path) {
+        $session = read_session_file($path);
+        if (is_array($session)) {
+            $sessions[] = $session;
+        }
+    }
+
+    return $sessions;
+}
+
+function migrate_legacy_session(): void
+{
+    $session = read_session_file(LEGACY_SESSION_FILE);
+    if (!$session) {
+        return;
+    }
+
+    if (!isset($session['sessionId']) || sanitize_string($session['sessionId'], 80) === '') {
+        $session['sessionId'] = bin2hex(random_bytes(16));
+    }
+
+    if (!is_file(session_path((string) $session['sessionId']))) {
+        save_session($session);
+    }
+
+    @unlink(LEGACY_SESSION_FILE);
+}
+
+function session_timestamp(array $session): int
+{
+    if (is_numeric($session['updatedAt'] ?? null)) {
+        return (int) $session['updatedAt'];
+    }
+
+    return is_numeric($session['createdAt'] ?? null) ? (int) $session['createdAt'] : 0;
+}
+
+function is_session_expired(array $session): bool
+{
+    $timestamp = session_timestamp($session);
+    return $timestamp <= 0 || (time() - $timestamp) > SESSION_MAX_AGE_SECONDS;
+}
+
+function prune_expired_sessions(): void
+{
+    foreach (all_sessions() as $session) {
+        if (is_session_expired($session)) {
+            delete_session($session);
+        }
+    }
+}
+
+function find_session_by_password(string $password): ?array
+{
+    if ($password === '') {
+        return null;
+    }
+
+    foreach (all_sessions() as $session) {
+        if (password_verify($password, $session['passwordHash'] ?? '')) {
+            return $session;
+        }
+    }
+
+    return null;
+}
+
+function find_session_by_host_token(string $hostToken): ?array
+{
+    if ($hostToken === '') {
+        return null;
+    }
+
+    foreach (all_sessions() as $session) {
+        if (password_verify($hostToken, $session['hostTokenHash'] ?? '')) {
+            return $session;
+        }
+    }
+
+    return null;
 }
 
 function sanitize_player(mixed $player): ?array
@@ -163,12 +277,6 @@ function selected_player_response(array $session, string $playerId, bool $includ
     return null;
 }
 
-function is_session_expired(array $session): bool
-{
-    $createdAt = is_numeric($session['createdAt'] ?? null) ? (int) $session['createdAt'] : 0;
-    return $createdAt <= 0 || (time() - $createdAt) > SESSION_MAX_AGE_SECONDS;
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     send_json(200, ['ok' => true]);
 }
@@ -183,8 +291,7 @@ with_session_lock(function () use ($action, $body): void {
             send_json(400, ['error' => 'password-required']);
         }
 
-        $existingSession = load_session();
-        if ($existingSession && !is_session_expired($existingSession)) {
+        if (find_session_by_password($password)) {
             send_json(409, ['error' => 'active-session-exists']);
         }
 
@@ -207,14 +314,10 @@ with_session_lock(function () use ($action, $body): void {
         ]);
     }
 
-    $session = load_session();
-    if (!$session) {
-        send_json(404, ['error' => 'no-active-session']);
-    }
-
     if ($action === 'join') {
         $password = sanitize_string($body['password'] ?? '', 120);
-        if ($password === '' || !password_verify($password, $session['passwordHash'] ?? '')) {
+        $session = find_session_by_password($password);
+        if (!$session) {
             send_json(403, ['error' => 'invalid-password']);
         }
 
@@ -227,12 +330,9 @@ with_session_lock(function () use ($action, $body): void {
 
     if ($action === 'resume-host') {
         $password = sanitize_string($body['password'] ?? '', 120);
-        if ($password === '' || !password_verify($password, $session['passwordHash'] ?? '')) {
+        $session = find_session_by_password($password);
+        if (!$session) {
             send_json(403, ['error' => 'invalid-password']);
-        }
-
-        if (is_session_expired($session)) {
-            send_json(404, ['error' => 'no-active-session']);
         }
 
         $hostToken = bin2hex(random_bytes(32));
@@ -250,7 +350,8 @@ with_session_lock(function () use ($action, $body): void {
     if ($action === 'select-player' || $action === 'player') {
         $password = sanitize_string($body['password'] ?? '', 120);
         $playerId = sanitize_string($body['playerId'] ?? '', 80);
-        if ($password === '' || !password_verify($password, $session['passwordHash'] ?? '')) {
+        $session = find_session_by_password($password);
+        if (!$session) {
             send_json(403, ['error' => 'invalid-password']);
         }
 
@@ -264,7 +365,8 @@ with_session_lock(function () use ($action, $body): void {
 
     if ($action === 'update') {
         $hostToken = sanitize_string($body['hostToken'] ?? '', 160);
-        if ($hostToken === '' || !password_verify($hostToken, $session['hostTokenHash'] ?? '')) {
+        $session = find_session_by_host_token($hostToken);
+        if (!$session) {
             send_json(403, ['error' => 'invalid-host-token']);
         }
 
@@ -283,11 +385,12 @@ with_session_lock(function () use ($action, $body): void {
 
     if ($action === 'close') {
         $hostToken = sanitize_string($body['hostToken'] ?? '', 160);
-        if ($hostToken === '' || !password_verify($hostToken, $session['hostTokenHash'] ?? '')) {
+        $session = find_session_by_host_token($hostToken);
+        if (!$session) {
             send_json(403, ['error' => 'invalid-host-token']);
         }
 
-        if (is_file(SESSION_FILE) && !unlink(SESSION_FILE)) {
+        if (!delete_session($session)) {
             send_json(500, ['error' => 'session-close-failed']);
         }
 

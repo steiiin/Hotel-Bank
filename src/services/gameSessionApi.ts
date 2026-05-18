@@ -45,6 +45,7 @@ export type PlayerSubscription = {
 };
 
 export type SubscribeOptions = {
+  sessionId: string;
   playerId: string;
   playerToken: string;
   password: string;
@@ -156,6 +157,7 @@ export function subscribeToPlayerUpdates(options: SubscribeOptions): PlayerSubsc
 
   if (typeof window.EventSource === 'function') {
     const params = new URLSearchParams({
+      sessionId: options.sessionId,
       playerId: options.playerId,
       playerToken: options.playerToken,
       since: String(lastVersion),

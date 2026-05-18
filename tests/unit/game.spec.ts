@@ -35,6 +35,31 @@ describe('game store', () => {
     expect(store.propertyOwnerships[0].entranceCount).toBe(1);
   });
 
+  test('exposes account property overviews from ownerships', async () => {
+    const store = useGameStore();
+
+    await addPlayers(store, ['Alice', 'Bob']);
+
+    expect(store.playerAccountOverviews).toEqual([
+      { id: 'player-1', name: 'Alice', balance: 15000, properties: [] },
+      { id: 'player-2', name: 'Bob', balance: 15000, properties: [] },
+    ]);
+
+    expect(store.purchaseProperty('hotel-boomerang', 'player-1')).toBe(true);
+
+    expect(store.playerAccountOverviews).toEqual([
+      { id: 'player-1', name: 'Alice', balance: 15000, properties: ['BOOMERANG BAY'] },
+      { id: 'player-2', name: 'Bob', balance: 15000, properties: [] },
+    ]);
+
+    expect(store.purchaseProperty('hotel-boomerang', 'player-2')).toBe(true);
+
+    expect(store.playerAccountOverviews).toEqual([
+      { id: 'player-1', name: 'Alice', balance: 15000, properties: [] },
+      { id: 'player-2', name: 'Bob', balance: 15000, properties: ['BOOMERANG BAY'] },
+    ]);
+  });
+
   test('returns to game tab when bank player is disabled', () => {
     const store = useGameStore();
 

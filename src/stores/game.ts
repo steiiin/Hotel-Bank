@@ -15,6 +15,10 @@ export type PlayerBalance = {
   balance: number;
 };
 
+export type PlayerAccountOverview = PlayerBalance & {
+  properties: string[];
+};
+
 export type PlayerSession = {
   id?: string;
   name: string;
@@ -149,6 +153,15 @@ export const useGameStore = defineStore('game', () => {
     });
     return map;
   });
+
+  const playerAccountOverviews = computed<PlayerAccountOverview[]>(() => (
+    playerBalances.value.map(account => ({
+      ...account,
+      properties: propertyOwnerships.value
+        .filter(ownership => ownership.ownerId === account.id)
+        .map(ownership => properties[ownership.propertyKey]?.name ?? ownership.propertyKey),
+    }))
+  ));
 
   watch(
     bankIsPlayer,
@@ -527,6 +540,7 @@ export const useGameStore = defineStore('game', () => {
     playerCount,
     formattedStartingCapital,
     playerBalances,
+    playerAccountOverviews,
     activePlayerSession,
     propertyOwnerships,
     hasCompletedTransaction,

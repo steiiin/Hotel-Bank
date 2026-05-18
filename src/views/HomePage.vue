@@ -86,13 +86,19 @@ async function handleBankPasswordConfirmed(data: { password?: string }) {
     return false;
   }
 
+  const didResume = await resumeHostSession(password);
+  if (didResume) {
+    await router.push({ name: 'Bank' });
+    return true;
+  }
+
   if (!hasHostSession.value || canReplaceHostSession.value) {
     const didStart = await startHostSession(password);
     if (!didStart) {
       const canResumeExistingSession = hostSessionError.value === 'active-session-exists';
-      const didResume = canResumeExistingSession ? await resumeHostSession(password) : false;
+      const didResumeAfterConflict = canResumeExistingSession ? await resumeHostSession(password) : false;
 
-      if (!didResume) {
+      if (!didResumeAfterConflict) {
         bankPasswordError.value = hostSessionError.value === 'invalid-password'
           ? 'Das Passwort passt nicht zur aktiven Session.'
           : 'Die Bank-Session konnte nicht geöffnet werden.';

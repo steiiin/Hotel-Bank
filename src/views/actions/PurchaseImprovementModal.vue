@@ -72,7 +72,7 @@
         </ion-card-content>
       </ion-card>
 
-      <ion-card v-if="selectedPropertyOption" with-header>
+      <ion-card v-if="selectedPropertyOption">
         <card-colored-header title="Nächster Ausbau"></card-colored-header>
         <ion-card-content>
           <ion-list lines="none">

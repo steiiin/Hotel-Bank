@@ -45,10 +45,10 @@ export const properties = {
     'MIRASOL', 2500, 1250, 200, 10,
     [
       new PropertyImprovement('Hauptgebäude',   1, 3600, [ 150, 300, 450, 600, 750, 900]),
-      new PropertyImprovement('Gebäude 2',      1, 2600, [ 300, 600, 900,1200,1500,1800]),
-      new PropertyImprovement('Gebäude 3',      1, 1800, [ 300, 600, 900,1200,1500,1800]),
-      new PropertyImprovement('Gebäude 4',      1, 1800, [ 450, 900,1350,1800,2250,2700]),
-      new PropertyImprovement('Freizeitanlage', 1, 3000, [ 600,1200,1800,2400,3000,3600]),
+      new PropertyImprovement('Gebäude 2',      2, 2600, [ 300, 600, 900,1200,1500,1800]),
+      new PropertyImprovement('Gebäude 3',      2, 1800, [ 300, 600, 900,1200,1500,1800]),
+      new PropertyImprovement('Gebäude 4',      3, 1800, [ 450, 900,1350,1800,2250,2700]),
+      new PropertyImprovement('Freizeitanlage', 4, 3000, [ 600,1200,1800,2400,3000,3600]),
     ]
   ),
   [PROPERTY_KEYS.montBlanc]: new Property(

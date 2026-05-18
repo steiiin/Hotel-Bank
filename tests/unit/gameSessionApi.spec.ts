@@ -122,6 +122,7 @@ describe('game session api', () => {
     const onModeChange = vi.fn();
 
     const subscription = subscribeToPlayerUpdates({
+      sessionId: 's1',
       playerId: 'player-1',
       playerToken: 'player-token',
       password: 'secret',
@@ -139,6 +140,32 @@ describe('game session api', () => {
     }));
 
     subscription.close();
+  });
+
+  test('subscribes to player updates for a specific session over event source', () => {
+    const addEventListener = vi.fn();
+    const close = vi.fn();
+    const eventSourceMock = vi.fn().mockImplementation(() => ({
+      addEventListener,
+      close,
+    }));
+    vi.stubGlobal('EventSource', eventSourceMock);
+
+    const subscription = subscribeToPlayerUpdates({
+      sessionId: 's1',
+      playerId: 'player-1',
+      playerToken: 'player-token',
+      password: 'secret',
+      since: 3,
+      onUpdate: vi.fn(),
+    });
+
+    expect(eventSourceMock).toHaveBeenCalledWith('/api/events.php?sessionId=s1&playerId=player-1&playerToken=player-token&since=3');
+    expect(addEventListener).toHaveBeenCalledWith('player', expect.any(Function));
+    expect(addEventListener).toHaveBeenCalledWith('error', expect.any(Function));
+
+    subscription.close();
+    expect(close).toHaveBeenCalled();
   });
 
   test('selects one player', async () => {

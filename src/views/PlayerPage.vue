@@ -183,6 +183,7 @@ async function selectJoinedPlayer() {
     applyPlayerUpdate(update);
     subscription?.close();
     subscription = subscribeToPlayerUpdates({
+      sessionId: update.sessionId,
       playerId: selectedPlayerId.value,
       playerToken: playerToken.value,
       password: joinPassword.value,

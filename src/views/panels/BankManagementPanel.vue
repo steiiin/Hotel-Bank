@@ -2,11 +2,12 @@
   <ion-card>
     <ion-card-content>
       <ion-list lines="none">
-        <ion-item v-for="account in playerBalances" :key="account.id"
+        <ion-item v-for="account in playerAccountOverviews" :key="account.id"
           @click="openPurchaseActions(account)" :detail="true" button>
           <ion-label>
             <h2>{{ account.name }}</h2>
             <p>{{ account.balance }}€</p>
+            <p v-if="account.properties.length">{{ account.properties.join(', ') }}</p>
           </ion-label>
         </ion-item>
       </ion-list>
@@ -56,19 +57,83 @@
     @resolved="closeAllActionModals"
   />
 
-  <ion-action-sheet mode="ios"
+  <ion-modal :is-open="showPurchaseActionSheet" @did-dismiss="hidePurchaseActionSheet">
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ purchaseActionPlayer?.name }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button @click="showPurchaseActionSheet=false">Abbrechen</ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      <div class="actions-grid single">
+        <ion-card button color="danger"
+          @click="queuePurchaseAction(() => passedBank())">
+          <ion-card-content>
+            <h2 style="color:#fff"><b>2000€</b> einziehen</h2>
+          </ion-card-content>
+        </ion-card>
+      </div>
+      <div class="actions-grid">
+        <ion-card button
+          @click="queuePurchaseAction(() => openPurchaseModal('property'))">
+          <ion-card-content>
+            <ion-img src="/assets/btn-kauf.png" />
+            <h2>Grundstück kaufen</h2>
+          </ion-card-content>
+        </ion-card>
+      </div>
+      <div class="actions-grid">
+        <ion-card button
+          @click="queuePurchaseAction(() => openPurchaseModal('improvement'))">
+          <ion-card-content>
+            <ion-img src="/assets/btn-ausbau.png" />
+            <h2>Grundstück ausbauen</h2>
+          </ion-card-content>
+        </ion-card>
+        <ion-card button
+          @click="queuePurchaseAction(() => openPurchaseModal('free-improvement'))">
+          <ion-card-content>
+            <ion-img src="/assets/btn-free-ausbau.png" />
+            <h2>Kostenloser Ausbau</h2>
+          </ion-card-content>
+        </ion-card>
+      </div>
+      <div class="actions-grid single">
+        <ion-card button color="warning"
+          @click="queuePurchaseAction(() => openPurchaseModal('entrances'))">
+          <ion-card-content>
+            <h2 style="color:#000"><b>Eingänge</b> kaufen</h2>
+          </ion-card-content>
+        </ion-card>
+      </div>
+      <div class="actions-grid">
+        <ion-card button
+          @click="queuePurchaseAction(() => openPurchaseModal('free-entrance'))">
+          <ion-card-content>
+            <ion-img src="/assets/btn-free-entrance.png" />
+            <h2>Kostenloser Eingang</h2>
+          </ion-card-content>
+        </ion-card>
+      </div>
+    </ion-content>
+  </ion-modal>
+
+  <!-- <ion-action-sheet mode="ios"
     :is-open="showPurchaseActionSheet"
     :header="purchaseActionPlayer?.name"
     :buttons="purchaseActionButtons"
     @willDismiss="showPurchaseActionSheet = false"
-    @didDismiss="handlePurchaseActionSheetDismiss"
-  />
+    @didDismiss="hidePurchaseActionSheet"
+  /> -->
+
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { IonActionSheet, IonCard, IonCardContent, IonButton, IonItem, IonLabel, IonList } from '@ionic/vue';
+import { IonActionSheet, IonCard, IonCardContent, IonButton, IonItem, IonLabel, IonList, IonModal, IonCardHeader, IonTitle, IonContent, IonHeader, IonToolbar, IonButtons, IonIcon, IonImg } from '@ionic/vue';
 import { BankTransactionInterface } from '@/composables/useBankTransactionInterface';
 import { useGameStore, type PlayerBalance } from '@/stores/game';
 import BankruptcyModal from '@/views/actions/BankruptcyModal.vue';
@@ -79,7 +144,7 @@ import PurchasePropertyModal from '@/views/actions/PurchasePropertyModal.vue';
 import RentModal from '@/views/actions/RentModal.vue';
 
 const gameStore = useGameStore();
-const { activeBankruptcySettlement, playerBalances } = storeToRefs(gameStore);
+const { activeBankruptcySettlement, playerAccountOverviews, playerBalances } = storeToRefs(gameStore);
 const showFreeEntranceModal = ref(false);
 const showFreeImprovementModal = ref(false);
 const showPurchaseEntrancesModal = ref(false);
@@ -92,56 +157,6 @@ const queuedPurchaseAction = ref<(() => void | Promise<void>) | null>(null);
 const purchaseActionPlayer = computed(() => (
   playerBalances.value.find(player => player.id === purchaseActionPlayerId.value) ?? null
 ));
-
-const purchaseActionButtons = computed(() => [
-  {
-    text: '2000€ einziehen',
-    handler: () => {
-      const player = purchaseActionPlayer.value;
-      if (!player) return;
-      queuePurchaseAction(() => passedBank(player));
-    },
-  },
-  {
-    text: '',
-    cssClass: 'purchase-action-divider',
-    disabled: true,
-  },
-  {
-    text: 'Grundstückskauf',
-    handler: () => queuePurchaseAction(() => openPurchaseModal('property')),
-  },
-  {
-    text: '',
-    cssClass: 'purchase-action-divider',
-    disabled: true,
-  },
-  {
-    text: 'Grundstücksausbau',
-    handler: () => queuePurchaseAction(() => openPurchaseModal('improvement')),
-  },
-  {
-    text: 'Kostenloser Ausbau',
-    handler: () => queuePurchaseAction(() => openPurchaseModal('free-improvement')),
-  },
-  {
-    text: '',
-    cssClass: 'purchase-action-divider',
-    disabled: true,
-  },
-  {
-    text: 'Eingänge',
-    handler: () => queuePurchaseAction(() => openPurchaseModal('entrances')),
-  },
-  {
-    text: 'Kostenloser Eingang',
-    handler: () => queuePurchaseAction(() => openPurchaseModal('free-entrance')),
-  },
-  {
-    text: 'Abbrechen',
-    role: 'cancel',
-  },
-]);
 
 type PurchaseAction = 'property' | 'improvement' | 'free-improvement' | 'entrances' | 'free-entrance';
 
@@ -156,9 +171,8 @@ function queuePurchaseAction(action: () => void | Promise<void>) {
   showPurchaseActionSheet.value = false;
 }
 
-function handlePurchaseActionSheetDismiss() {
+function hidePurchaseActionSheet() {
   showPurchaseActionSheet.value = false;
-
   const action = queuedPurchaseAction.value;
   queuedPurchaseAction.value = null;
   void action?.();
@@ -172,20 +186,19 @@ function openPurchaseModal(action: PurchaseAction) {
   showFreeEntranceModal.value = action === 'free-entrance';
 }
 
-async function passedBank(player: PlayerBalance) {
+async function passedBank() {
+  const player = purchaseActionPlayer.value;
+  if (!player) return;
   const balanceAfter = player.balance + 2000;
   const payload = {
     type: 'passed-bank',
     player: player.name,
     balanceAfter,
   };
-
   const bankTransaction = await BankTransactionInterface.show('Bank passiert', payload);
-
   if (!bankTransaction.wasSuccessful) {
     return;
   }
-
   gameStore.updatePlayerBalance(player.id, balanceAfter);
   gameStore.recordCompletedTransaction();
 }
@@ -213,12 +226,30 @@ function closeAllActionModals() {
   margin: 0;
 }
 
-:global(.purchase-action-divider) {
-  border-top: 3px solid var(--ion-color-step-200, #d7d8da) !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  pointer-events: none;
+.actions-grid h2 {
+  font-size: .9rem;
+  text-transform: uppercase;
+  text-align: center;
+  color: #fff;
 }
+
+.actions-grid {
+  display: flex;
+}
+
+.actions-grid ion-card {
+  width: 156px;
+  --background: #333;
+}
+
+.actions-gris ion-img {
+  filter: contrast(1) brightness(1.4) opacity(.9);
+  margin-bottom: 1rem;
+}
+
+.actions-grid.single ion-card {
+  width: 100vw;
+  flex: 1;
+}
+
 </style>
